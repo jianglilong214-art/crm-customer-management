@@ -1,0 +1,6 @@
+node_modules/
+dist/
+server/crm.db
+apk_extracted/
+.DS_Store
+*.log
