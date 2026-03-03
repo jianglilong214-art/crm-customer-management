@@ -1,0 +1,13 @@
+{
+  "appId": "com.crm.customer",
+  "appName": "CRM客户管理",
+  "webDir": "dist",
+  "server": {
+    "url": "https://crm-system-c3f.pages.dev",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#667eea"
+  }
+}

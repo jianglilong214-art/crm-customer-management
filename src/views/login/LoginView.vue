@@ -1,6 +1,6 @@
 <template>
   <div style="height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-    <el-card style="width: 420px; border-radius: 12px;" shadow="always">
+    <el-card style="width: 420px; max-width: 92vw; border-radius: 12px;" shadow="always">
       <div style="text-align: center; margin-bottom: 30px;">
         <h2 style="color: #303133; margin-bottom: 8px;">CRM客户管理系统</h2>
         <p style="color: #909399; font-size: 14px;">销售团队智能管理平台</p>

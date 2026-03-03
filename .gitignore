@@ -2,5 +2,16 @@ node_modules/
 dist/
 server/crm.db
 apk_extracted/
+cloudflared.exe
+server.log
+tunnel.log
 .DS_Store
-*.log
+
+# Android build artifacts
+android/app/build/
+android/.gradle/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+*.apk
+*.keystore
+worker/.wrangler/

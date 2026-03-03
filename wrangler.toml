@@ -1,0 +1,9 @@
+name = "crm-system"
+pages_build_output_dir = "./dist"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "crm-database"
+database_id = "dc8135c0-a872-4a3e-b213-cc558a2a8904"
