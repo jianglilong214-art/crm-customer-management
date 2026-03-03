@@ -17,7 +17,7 @@ export default defineConfig({
     })
   ],
   build: {
-    crossOriginLoading: false
+    target: 'es2019'
   },
   resolve: {
     alias: {
