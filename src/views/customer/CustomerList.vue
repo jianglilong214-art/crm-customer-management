@@ -7,7 +7,13 @@
         </el-form-item>
         <el-form-item label="意向">
           <el-select v-model="query.intention_level" placeholder="全部" clearable style="width: 100px;">
-            <el-option label="A级" value="A" /><el-option label="B级" value="B" /><el-option label="C级" value="C" />
+            <el-option label="A级" value="A" />
+            <el-option label="B级" value="B" />
+            <el-option label="C级" value="C" />
+            <el-option label="D级" value="D" />
+            <el-option label="E级" value="E" />
+            <el-option label="F级" value="F" />
+            <el-option label="G级" value="G" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
@@ -20,6 +26,17 @@
             <el-option label="网络推广" value="网络推广" /><el-option label="门店来访" value="门店来访" />
             <el-option label="朋友推荐" value="朋友推荐" /><el-option label="电话营销" value="电话营销" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="负责人">
+          <el-select v-model="query.owner_id" placeholder="全部" clearable style="width: 120px;">
+            <el-option v-for="u in userList" :key="u.id" :label="u.name" :value="u.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="标签">
+          <el-input v-model="query.tag" placeholder="标签筛选" clearable style="width: 120px;" />
+        </el-form-item>
+        <el-form-item label="创建时间">
+          <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width: 240px;" @change="onDateChange" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="loadData">搜索</el-button>
@@ -44,9 +61,10 @@
         <el-table-column prop="gender" label="性别" width="60" />
         <el-table-column label="意向" width="70">
           <template #default="{ row }">
-            <el-tag :type="row.intention_level === 'A' ? 'danger' : row.intention_level === 'B' ? 'warning' : 'info'" size="small">
+            <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '4px' }">
+              <span :style="{ width: '10px', height: '10px', borderRadius: '50%', background: intentionColor(row.intention_level), display: 'inline-block' }"></span>
               {{ row.intention_level }}级
-            </el-tag>
+            </span>
           </template>
         </el-table-column>
         <el-table-column prop="source" label="来源" width="100" />
@@ -90,22 +108,45 @@ const router = useRouter()
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
-const query = ref({ keyword: '', intention_level: '', status: '', source: '', page: 1, pageSize: 10 })
+const userList = ref([])
+const dateRange = ref(null)
+const query = ref({ keyword: '', intention_level: '', status: '', source: '', owner_id: '', tag: '', date_from: '', date_to: '', page: 1, pageSize: 10 })
 
-onMounted(() => loadData())
+const intentionColors = { A: '#f56c6c', B: '#e6a23c', C: '#409eff', D: '#67c23a', E: '#909399', F: '#c0c4cc', G: '#dcdfe6' }
+function intentionColor(level) { return intentionColors[level] || '#909399' }
+
+function onDateChange(val) {
+  if (val) {
+    query.value.date_from = val[0]
+    query.value.date_to = val[1]
+  } else {
+    query.value.date_from = ''
+    query.value.date_to = ''
+  }
+}
+
+onMounted(async () => {
+  loadData()
+  const res = await request.get('/user/list')
+  if (res.code === 200) userList.value = res.data
+})
 
 useSync('customer:change', loadData, { message: '客户数据已更新' })
 
 async function loadData() {
   loading.value = true
   try {
-    const res = await request.get('/customers', { params: query.value })
+    const params = { ...query.value }
+    // Remove empty params
+    Object.keys(params).forEach(k => { if (params[k] === '' || params[k] === null || params[k] === undefined) delete params[k] })
+    const res = await request.get('/customers', { params })
     if (res.code === 200) { list.value = res.data.list; total.value = res.data.total }
   } finally { loading.value = false }
 }
 
 function resetQuery() {
-  query.value = { keyword: '', intention_level: '', status: '', source: '', page: 1, pageSize: 10 }
+  query.value = { keyword: '', intention_level: '', status: '', source: '', owner_id: '', tag: '', date_from: '', date_to: '', page: 1, pageSize: 10 }
+  dateRange.value = null
   loadData()
 }
 

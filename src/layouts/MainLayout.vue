@@ -23,6 +23,10 @@
           <el-icon><User /></el-icon>
           <template #title>客户管理</template>
         </el-menu-item>
+        <el-menu-item index="/calendar">
+          <el-icon><Calendar /></el-icon>
+          <template #title>日历视图</template>
+        </el-menu-item>
         <el-menu-item index="/message">
           <el-icon><Message /></el-icon>
           <template #title>消息中心</template>
@@ -34,6 +38,22 @@
         <el-menu-item index="/worklog">
           <el-icon><Notebook /></el-icon>
           <template #title>工作日志</template>
+        </el-menu-item>
+        <el-menu-item index="/activities">
+          <el-icon><Star /></el-icon>
+          <template #title>活动中心</template>
+        </el-menu-item>
+        <el-menu-item index="/achievements">
+          <el-icon><Trophy /></el-icon>
+          <template #title>业绩成就</template>
+        </el-menu-item>
+        <el-menu-item index="/businesscard">
+          <el-icon><Postcard /></el-icon>
+          <template #title>电子名片</template>
+        </el-menu-item>
+        <el-menu-item index="/analytics">
+          <el-icon><DataAnalysis /></el-icon>
+          <template #title>数据分析</template>
         </el-menu-item>
         <el-sub-menu index="salary-menu">
           <template #title>
@@ -142,6 +162,11 @@
         </div>
       </template>
       <div class="mobile-menu-list">
+        <div class="menu-item" @click="goMobile('/calendar')"><el-icon><Calendar /></el-icon><span>日历视图</span></div>
+        <div class="menu-item" @click="goMobile('/activities')"><el-icon><Star /></el-icon><span>活动中心</span></div>
+        <div class="menu-item" @click="goMobile('/achievements')"><el-icon><Trophy /></el-icon><span>业绩成就</span></div>
+        <div class="menu-item" @click="goMobile('/businesscard')"><el-icon><Postcard /></el-icon><span>电子名片</span></div>
+        <div class="menu-item" @click="goMobile('/analytics')"><el-icon><DataAnalysis /></el-icon><span>数据分析</span></div>
         <div class="menu-item" @click="goMobile('/worklog')"><el-icon><Notebook /></el-icon><span>工作日志</span></div>
         <div class="menu-item" @click="goMobile('/salary')"><el-icon><Money /></el-icon><span>薪酬查询</span></div>
         <div class="menu-item" @click="goMobile('/salary/calculate')"><el-icon><Money /></el-icon><span>薪酬计算</span></div>

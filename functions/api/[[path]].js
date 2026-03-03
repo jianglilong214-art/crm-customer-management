@@ -13,7 +13,7 @@ app.use('*', cors())
 // ==================== Auth Middleware ====================
 app.use('/api/*', async (c, next) => {
   const path = new URL(c.req.url).pathname
-  if (path.startsWith('/api/auth') || path.startsWith('/api/setup')) {
+  if (path.startsWith('/api/auth') || path.startsWith('/api/setup') || path.match(/^\/api\/businesscard\/\d+$/)) {
     return next()
   }
   const authHeader = c.req.header('Authorization')
@@ -199,6 +199,28 @@ app.get('/api/setup', async (c) => {
   }
   await db.batch(salaryBatch)
 
+  // Announcements
+  await db.batch([
+    db.prepare('INSERT INTO announcements (title, content, type, is_active, created_by) VALUES (?, ?, ?, ?, ?)').bind('系统升级通知', 'CRM系统已升级至v2.0版本，新增日历、名片、活动、业绩等多项功能，欢迎体验！', 'info', 1, 1),
+    db.prepare('INSERT INTO announcements (title, content, type, is_active, created_by) VALUES (?, ?, ?, ?, ?)').bind('本月销售冲刺', '距离月末还有10天，全员冲刺签约目标！完成目标额外奖励2000元。', 'important', 1, 1),
+    db.prepare('INSERT INTO announcements (title, content, type, is_active, created_by) VALUES (?, ?, ?, ?, ?)').bind('周五团建活动', '本周五下午3点公司组织团建活动，请大家准时参加，地点：会议室A。', 'info', 1, 2),
+  ])
+
+  // Activities
+  await db.batch([
+    db.prepare('INSERT INTO activities (title, description, location, start_time, end_time, max_participants, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind('翡翠湾花园开盘活动', '翡翠湾花园二期盛大开盘，现场抽奖送家电', '翡翠湾花园销售中心', '2026-03-15 09:00:00', '2026-03-15 17:00:00', 100, 'upcoming', 1),
+    db.prepare('INSERT INTO activities (title, description, location, start_time, end_time, max_participants, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind('客户答谢晚宴', '年度客户答谢晚宴，邀请VIP客户参加', '希尔顿酒店宴会厅', '2026-03-20 18:00:00', '2026-03-20 21:00:00', 50, 'upcoming', 1),
+    db.prepare('INSERT INTO activities (title, description, location, start_time, end_time, max_participants, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind('销售技巧培训', '邀请行业专家进行销售技巧专项培训', '公司培训室', '2026-02-28 14:00:00', '2026-02-28 17:00:00', 30, 'ended', 2),
+  ])
+
+  // Achievements
+  await db.batch([
+    db.prepare('INSERT INTO achievements (user_id, type, title, description, icon) VALUES (?, ?, ?, ?, ?)').bind(2, 'sales', '签约达人', '单月签约5单以上', '🏆'),
+    db.prepare('INSERT INTO achievements (user_id, type, title, description, icon) VALUES (?, ?, ?, ?, ?)').bind(2, 'attendance', '全勤之星', '连续30天无迟到', '⭐'),
+    db.prepare('INSERT INTO achievements (user_id, type, title, description, icon) VALUES (?, ?, ?, ?, ?)').bind(3, 'follow', '跟进狂人', '单月跟进客户50次以上', '🔥'),
+    db.prepare('INSERT INTO achievements (user_id, type, title, description, icon) VALUES (?, ?, ?, ?, ?)').bind(4, 'newbie', '新人王', '入职首月签约3单', '👑'),
+  ])
+
   return c.json({ code: 200, message: '数据库初始化成功！默认账号: admin/123456, zhangsan/123456, lisi/123456, wangwu/123456, zhaoliu/123456' })
 })
 
@@ -254,7 +276,7 @@ app.post('/api/auth/change-password', async (c) => {
 // ==================== Customer Routes ====================
 app.get('/api/customers', async (c) => {
   const db = c.env.DB
-  const { keyword, status, intention_level, source, page = '1', pageSize = '10' } = c.req.query()
+  const { keyword, status, intention_level, source, owner_id, tag, date_from, date_to, page = '1', pageSize = '10' } = c.req.query()
   let where = []
   let params = []
 
@@ -265,6 +287,13 @@ app.get('/api/customers', async (c) => {
   if (status) { where.push('c.status = ?'); params.push(status) }
   if (intention_level) { where.push('c.intention_level = ?'); params.push(intention_level) }
   if (source) { where.push('c.source = ?'); params.push(source) }
+  if (owner_id) { where.push('c.owner_id = ?'); params.push(parseInt(owner_id)) }
+  if (date_from) { where.push('date(c.created_at) >= ?'); params.push(date_from) }
+  if (date_to) { where.push('date(c.created_at) <= ?'); params.push(date_to) }
+  if (tag) {
+    where.push('c.id IN (SELECT customer_id FROM customer_tags WHERE tag = ?)')
+    params.push(tag)
+  }
 
   const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : ''
   const offset = (parseInt(page) - 1) * parseInt(pageSize)
@@ -284,7 +313,8 @@ app.get('/api/customers/:id', async (c) => {
   if (!customer) return c.json({ code: 404, message: '客户不存在' })
 
   const { results: follows } = await db.prepare('SELECT cf.*, u.name as user_name FROM customer_follows cf LEFT JOIN users u ON cf.user_id = u.id WHERE cf.customer_id = ? ORDER BY cf.created_at DESC').bind(id).all()
-  return c.json({ code: 200, data: { ...customer, follows } })
+  const { results: tags } = await db.prepare('SELECT id, tag FROM customer_tags WHERE customer_id = ? ORDER BY id').bind(id).all()
+  return c.json({ code: 200, data: { ...customer, follows, tags: tags.map(t => t.tag) } })
 })
 
 app.post('/api/customers', async (c) => {
@@ -683,6 +713,309 @@ app.get('/api/user/list', async (c) => {
   const db = c.env.DB
   const { results: list } = await db.prepare('SELECT id, username, name, phone, role, department FROM users WHERE status = 1 ORDER BY id').all()
   return c.json({ code: 200, data: list })
+})
+
+// ==================== Customer Tags Routes ====================
+app.get('/api/customers/:id/tags', async (c) => {
+  const db = c.env.DB
+  const id = parseInt(c.req.param('id'))
+  const { results: tags } = await db.prepare('SELECT id, tag FROM customer_tags WHERE customer_id = ? ORDER BY id').bind(id).all()
+  return c.json({ code: 200, data: tags })
+})
+
+app.post('/api/customers/:id/tags', async (c) => {
+  const db = c.env.DB
+  const id = parseInt(c.req.param('id'))
+  const { tag } = await c.req.json()
+  if (!tag) return c.json({ code: 400, message: '标签不能为空' })
+  const existing = await db.prepare('SELECT id FROM customer_tags WHERE customer_id = ? AND tag = ?').bind(id, tag).first()
+  if (existing) return c.json({ code: 400, message: '标签已存在' })
+  await db.prepare('INSERT INTO customer_tags (customer_id, tag) VALUES (?, ?)').bind(id, tag).run()
+  return c.json({ code: 200, message: '标签添加成功' })
+})
+
+app.delete('/api/customers/:id/tags/:tag', async (c) => {
+  const db = c.env.DB
+  const id = parseInt(c.req.param('id'))
+  const tag = decodeURIComponent(c.req.param('tag'))
+  await db.prepare('DELETE FROM customer_tags WHERE customer_id = ? AND tag = ?').bind(id, tag).run()
+  return c.json({ code: 200, message: '标签删除成功' })
+})
+
+// ==================== Announcement Routes ====================
+app.get('/api/announcements', async (c) => {
+  const db = c.env.DB
+  const { active } = c.req.query()
+  let sql = 'SELECT a.*, u.name as creator_name FROM announcements a LEFT JOIN users u ON a.created_by = u.id'
+  let params = []
+  if (active === '1') { sql += ' WHERE a.is_active = 1'; }
+  sql += ' ORDER BY a.created_at DESC'
+  const { results: list } = await db.prepare(sql).bind(...params).all()
+  return c.json({ code: 200, data: list })
+})
+
+app.post('/api/announcements', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+  const { title, content, type } = await c.req.json()
+  if (!title) return c.json({ code: 400, message: '标题不能为空' })
+  await db.prepare('INSERT INTO announcements (title, content, type, created_by) VALUES (?, ?, ?, ?)').bind(title, content || '', type || 'info', user.id).run()
+  return c.json({ code: 200, message: '公告发布成功' })
+})
+
+// ==================== Calendar Event Routes ====================
+app.get('/api/calendar/events', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+  const { month, year } = c.req.query()
+
+  let events = []
+
+  // Custom events
+  let evtWhere = 'WHERE user_id = ?'
+  let evtParams = [user.id]
+  if (year && month) {
+    evtWhere += ' AND event_date LIKE ?'
+    evtParams.push(`${year}-${String(month).padStart(2, '0')}%`)
+  }
+  const { results: customEvents } = await db.prepare(`SELECT id, title, description, event_date, event_type, color FROM calendar_events ${evtWhere} ORDER BY event_date`).bind(...evtParams).all()
+  events.push(...customEvents.map(e => ({ ...e, source: 'custom' })))
+
+  // Follow-up events from customer_follows
+  let followWhere = 'WHERE cf.user_id = ? AND cf.next_follow_time IS NOT NULL'
+  let followParams = [user.id]
+  if (year && month) {
+    followWhere += ' AND cf.next_follow_time LIKE ?'
+    followParams.push(`${year}-${String(month).padStart(2, '0')}%`)
+  }
+  const { results: followEvents } = await db.prepare(`SELECT cf.id, c.name as title, cf.next_follow_time as event_date, 'follow' as event_type, '#e6a23c' as color FROM customer_follows cf LEFT JOIN customers c ON cf.customer_id = c.id ${followWhere}`).bind(...followParams).all()
+  events.push(...followEvents.map(e => ({ ...e, source: 'follow', description: '跟进: ' + e.title })))
+
+  // Attendance events
+  let attWhere = 'WHERE user_id = ?'
+  let attParams = [user.id]
+  if (year && month) {
+    attWhere += ' AND date LIKE ?'
+    attParams.push(`${year}-${String(month).padStart(2, '0')}%`)
+  }
+  const { results: attEvents } = await db.prepare(`SELECT id, date as event_date, sign_in_time, status, 'attendance' as event_type, CASE WHEN status = 'late' THEN '#f56c6c' ELSE '#67c23a' END as color FROM attendance ${attWhere}`).bind(...attParams).all()
+  events.push(...attEvents.map(e => ({ ...e, source: 'attendance', title: e.status === 'late' ? '迟到' : '正常出勤', description: '签到: ' + (e.sign_in_time || '').substring(11, 16) })))
+
+  return c.json({ code: 200, data: events })
+})
+
+app.post('/api/calendar/events', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+  const { title, description, event_date, event_type, color } = await c.req.json()
+  if (!title || !event_date) return c.json({ code: 400, message: '标题和日期不能为空' })
+  await db.prepare('INSERT INTO calendar_events (user_id, title, description, event_date, event_type, color) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(user.id, title, description || '', event_date, event_type || 'custom', color || '#409eff').run()
+  return c.json({ code: 200, message: '事件添加成功' })
+})
+
+app.delete('/api/calendar/events/:id', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+  const id = parseInt(c.req.param('id'))
+  await db.prepare('DELETE FROM calendar_events WHERE id = ? AND user_id = ?').bind(id, user.id).run()
+  return c.json({ code: 200, message: '事件删除成功' })
+})
+
+// ==================== Business Card Routes ====================
+app.get('/api/businesscard', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+  let card = await db.prepare('SELECT * FROM business_cards WHERE user_id = ?').bind(user.id).first()
+  if (!card) {
+    const userInfo = await db.prepare('SELECT name, phone, email, department FROM users WHERE id = ?').bind(user.id).first()
+    card = { user_id: user.id, name: userInfo?.name || '', phone: userInfo?.phone || '', email: userInfo?.email || '', title: '', company: '', wechat: '', address: '', slogan: '' }
+  }
+  return c.json({ code: 200, data: card })
+})
+
+app.put('/api/businesscard', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+  const { name, title, company, phone, email, wechat, address, slogan } = await c.req.json()
+  const existing = await db.prepare('SELECT id FROM business_cards WHERE user_id = ?').bind(user.id).first()
+  if (existing) {
+    await db.prepare('UPDATE business_cards SET name=?, title=?, company=?, phone=?, email=?, wechat=?, address=?, slogan=?, updated_at=CURRENT_TIMESTAMP WHERE user_id=?')
+      .bind(name || '', title || '', company || '', phone || '', email || '', wechat || '', address || '', slogan || '', user.id).run()
+  } else {
+    await db.prepare('INSERT INTO business_cards (user_id, name, title, company, phone, email, wechat, address, slogan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(user.id, name || '', title || '', company || '', phone || '', email || '', wechat || '', address || '', slogan || '').run()
+  }
+  return c.json({ code: 200, message: '名片保存成功' })
+})
+
+app.get('/api/businesscard/:userId', async (c) => {
+  const db = c.env.DB
+  const userId = parseInt(c.req.param('userId'))
+  const card = await db.prepare('SELECT bc.*, u.avatar FROM business_cards bc LEFT JOIN users u ON bc.user_id = u.id WHERE bc.user_id = ?').bind(userId).first()
+  if (!card) return c.json({ code: 404, message: '名片不存在' })
+  return c.json({ code: 200, data: card })
+})
+
+// ==================== Analytics Routes ====================
+app.get('/api/analytics/overview', async (c) => {
+  const db = c.env.DB
+
+  // Customer funnel
+  const { total: totalCustomers } = await db.prepare('SELECT COUNT(*) as total FROM customers').first()
+  const { total: followedCount } = await db.prepare("SELECT COUNT(*) as total FROM customers WHERE status IN ('followed', 'signed')").first()
+  const { total: signedCount } = await db.prepare("SELECT COUNT(*) as total FROM customers WHERE status = 'signed'").first()
+
+  // Follow trend (last 30 days)
+  const followTrend = []
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const dateStr = d.toISOString().split('T')[0]
+    const { count } = await db.prepare('SELECT COUNT(*) as count FROM customer_follows WHERE date(created_at) = ?').bind(dateStr).first()
+    followTrend.push({ date: dateStr, count })
+  }
+
+  // Attendance stats (current month)
+  const now = new Date()
+  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}%`
+  const { normal } = await db.prepare("SELECT COUNT(*) as normal FROM attendance WHERE date LIKE ? AND status = 'normal'").bind(monthPrefix).first()
+  const { late } = await db.prepare("SELECT COUNT(*) as late FROM attendance WHERE date LIKE ? AND status = 'late'").bind(monthPrefix).first()
+
+  // Team performance radar
+  const { results: teamData } = await db.prepare(
+    `SELECT t.name,
+      COALESCE(SUM(ts.score), 0) as score,
+      COALESCE(SUM(ts.customer_count), 0) as customers,
+      COALESCE(SUM(ts.sign_count), 0) as signs
+    FROM teams t LEFT JOIN team_scores ts ON t.id = ts.team_id AND ts.date >= date('now', '-30 days')
+    GROUP BY t.id`
+  ).all()
+
+  // Intention distribution
+  const { results: intentionData } = await db.prepare('SELECT intention_level, COUNT(*) as count FROM customers GROUP BY intention_level ORDER BY intention_level').all()
+
+  return c.json({
+    code: 200,
+    data: {
+      funnel: { total: totalCustomers, followed: followedCount, signed: signedCount },
+      followTrend,
+      attendance: { normal, late },
+      teamRadar: teamData,
+      intentionDistribution: intentionData
+    }
+  })
+})
+
+// ==================== Activity Routes ====================
+app.get('/api/activities', async (c) => {
+  const db = c.env.DB
+  const { status, page = '1', pageSize = '10' } = c.req.query()
+  let where = []
+  let params = []
+  if (status) { where.push('a.status = ?'); params.push(status) }
+  const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : ''
+  const offset = (parseInt(page) - 1) * parseInt(pageSize)
+
+  const { total } = await db.prepare(`SELECT COUNT(*) as total FROM activities a ${whereClause}`).bind(...params).first()
+  const { results: list } = await db.prepare(
+    `SELECT a.*, u.name as creator_name, (SELECT COUNT(*) FROM activity_signups WHERE activity_id = a.id) as signup_count FROM activities a LEFT JOIN users u ON a.created_by = u.id ${whereClause} ORDER BY a.start_time DESC LIMIT ? OFFSET ?`
+  ).bind(...params, parseInt(pageSize), offset).all()
+
+  return c.json({ code: 200, data: { list, total } })
+})
+
+app.get('/api/activities/:id', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+  const id = parseInt(c.req.param('id'))
+  const activity = await db.prepare('SELECT a.*, u.name as creator_name FROM activities a LEFT JOIN users u ON a.created_by = u.id WHERE a.id = ?').bind(id).first()
+  if (!activity) return c.json({ code: 404, message: '活动不存在' })
+
+  const { results: signups } = await db.prepare('SELECT s.*, u.name as user_name FROM activity_signups s LEFT JOIN users u ON s.user_id = u.id WHERE s.activity_id = ? ORDER BY s.created_at DESC').bind(id).all()
+  const mySignup = await db.prepare('SELECT id FROM activity_signups WHERE activity_id = ? AND user_id = ?').bind(id, user.id).first()
+
+  return c.json({ code: 200, data: { ...activity, signups, signup_count: signups.length, has_signed: !!mySignup } })
+})
+
+app.post('/api/activities', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+  const { title, description, location, start_time, end_time, max_participants } = await c.req.json()
+  if (!title) return c.json({ code: 400, message: '活动标题不能为空' })
+  await db.prepare('INSERT INTO activities (title, description, location, start_time, end_time, max_participants, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .bind(title, description || '', location || '', start_time || '', end_time || '', max_participants || 0, user.id).run()
+  return c.json({ code: 200, message: '活动创建成功' })
+})
+
+app.post('/api/activities/:id/signup', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+  const id = parseInt(c.req.param('id'))
+
+  const activity = await db.prepare('SELECT * FROM activities WHERE id = ?').bind(id).first()
+  if (!activity) return c.json({ code: 404, message: '活动不存在' })
+  if (activity.status === 'ended') return c.json({ code: 400, message: '活动已结束' })
+
+  const existing = await db.prepare('SELECT id FROM activity_signups WHERE activity_id = ? AND user_id = ?').bind(id, user.id).first()
+  if (existing) return c.json({ code: 400, message: '已报名' })
+
+  if (activity.max_participants > 0) {
+    const { count } = await db.prepare('SELECT COUNT(*) as count FROM activity_signups WHERE activity_id = ?').bind(id).first()
+    if (count >= activity.max_participants) return c.json({ code: 400, message: '报名人数已满' })
+  }
+
+  await db.prepare('INSERT INTO activity_signups (activity_id, user_id) VALUES (?, ?)').bind(id, user.id).run()
+  return c.json({ code: 200, message: '报名成功' })
+})
+
+// ==================== Achievement Routes ====================
+app.get('/api/achievements', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+
+  // Earned achievements
+  const { results: badges } = await db.prepare('SELECT * FROM achievements WHERE user_id = ? ORDER BY earned_at DESC').bind(user.id).all()
+
+  // Performance stats
+  const { total: myCustomers } = await db.prepare('SELECT COUNT(*) as total FROM customers WHERE owner_id = ?').bind(user.id).first()
+  const { total: mySigned } = await db.prepare("SELECT COUNT(*) as total FROM customers WHERE owner_id = ? AND status = 'signed'").bind(user.id).first()
+  const { total: myFollows } = await db.prepare('SELECT COUNT(*) as total FROM customer_follows WHERE user_id = ?').bind(user.id).first()
+
+  // Monthly target (simple: 10 signed per month)
+  const now = new Date()
+  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}%`
+  const { total: monthSigned } = await db.prepare("SELECT COUNT(*) as total FROM customers WHERE owner_id = ? AND status = 'signed' AND updated_at LIKE ?").bind(user.id, monthPrefix).first()
+
+  // Performance trend (last 6 months)
+  const perfTrend = []
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const mp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}%`
+    const { count } = await db.prepare("SELECT COUNT(*) as count FROM customers WHERE owner_id = ? AND status = 'signed' AND updated_at LIKE ?").bind(user.id, mp).first()
+    perfTrend.push({ month: `${d.getMonth() + 1}月`, count })
+  }
+
+  return c.json({
+    code: 200,
+    data: {
+      badges,
+      stats: { customers: myCustomers, signed: mySigned, follows: myFollows },
+      monthTarget: { target: 10, actual: monthSigned },
+      perfTrend
+    }
+  })
+})
+
+// ==================== Feedback Route ====================
+app.post('/api/feedback', async (c) => {
+  const db = c.env.DB
+  const user = c.get('user')
+  const { content, type } = await c.req.json()
+  if (!content) return c.json({ code: 400, message: '反馈内容不能为空' })
+  // Store as a system message
+  await db.prepare('INSERT INTO messages (user_id, title, content, type) VALUES (?, ?, ?, ?)').bind(1, '用户反馈: ' + (type || '建议'), `来自${user.username}: ${content}`, 'system').run()
+  return c.json({ code: 200, message: '感谢您的反馈！' })
 })
 
 export const onRequest = handle(app)

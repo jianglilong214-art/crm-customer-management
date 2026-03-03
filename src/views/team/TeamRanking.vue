@@ -1,11 +1,23 @@
 <template>
   <div>
     <el-card shadow="never" style="margin-bottom: 16px;">
-      <template #header><span style="font-weight: bold;">团队排名</span></template>
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: bold;">团队排名</span>
+          <el-radio-group v-model="timeRange" size="small" @change="loadData">
+            <el-radio-button value="1">今日</el-radio-button>
+            <el-radio-button value="7">本周</el-radio-button>
+            <el-radio-button value="30">本月</el-radio-button>
+          </el-radio-group>
+        </div>
+      </template>
       <el-table :data="teamRanking" stripe>
-        <el-table-column label="排名" width="70" align="center">
+        <el-table-column label="排名" width="80" align="center">
           <template #default="{ $index }">
-            <span :style="{ fontSize: $index < 3 ? '18px' : '14px', fontWeight: $index < 3 ? 'bold' : 'normal', color: ['#f56c6c','#e6a23c','#409eff'][$index] || '#303133' }">{{ $index + 1 }}</span>
+            <span v-if="$index === 0" style="font-size: 24px;">🥇</span>
+            <span v-else-if="$index === 1" style="font-size: 24px;">🥈</span>
+            <span v-else-if="$index === 2" style="font-size: 24px;">🥉</span>
+            <span v-else style="font-size: 16px; color: #909399;">{{ $index + 1 }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="name" label="团队" />
@@ -16,11 +28,18 @@
     </el-card>
 
     <el-card shadow="never">
-      <template #header><span style="font-weight: bold;">个人排名</span></template>
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: bold;">个人排名</span>
+        </div>
+      </template>
       <el-table :data="individualRanking" stripe>
-        <el-table-column label="排名" width="70" align="center">
+        <el-table-column label="排名" width="80" align="center">
           <template #default="{ $index }">
-            <span :style="{ fontSize: $index < 3 ? '18px' : '14px', fontWeight: $index < 3 ? 'bold' : 'normal', color: ['#f56c6c','#e6a23c','#409eff'][$index] || '#303133' }">{{ $index + 1 }}</span>
+            <span v-if="$index === 0" style="font-size: 24px;">🥇</span>
+            <span v-else-if="$index === 1" style="font-size: 24px;">🥈</span>
+            <span v-else-if="$index === 2" style="font-size: 24px;">🥉</span>
+            <span v-else style="font-size: 16px; color: #909399;">{{ $index + 1 }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="name" label="姓名" />
@@ -39,10 +58,11 @@ import { useSync } from '../../composables/useSync'
 
 const teamRanking = ref([])
 const individualRanking = ref([])
+const timeRange = ref('7')
 
 async function loadData() {
   const [teamRes, indRes] = await Promise.all([
-    request.get('/teams/ranking/list'),
+    request.get('/teams/ranking/list', { params: { days: timeRange.value } }),
     request.get('/teams/ranking/individual')
   ])
   if (teamRes.code === 200) teamRanking.value = teamRes.data

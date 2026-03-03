@@ -17,9 +17,10 @@
         <el-descriptions-item label="性别">{{ customer.gender }}</el-descriptions-item>
         <el-descriptions-item label="年龄">{{ customer.age }}</el-descriptions-item>
         <el-descriptions-item label="意向等级">
-          <el-tag :type="customer.intention_level === 'A' ? 'danger' : customer.intention_level === 'B' ? 'warning' : 'info'">
-            {{ customer.intention_level }}级
-          </el-tag>
+          <span style="display: inline-flex; align-items: center; gap: 6px;">
+            <span :style="{ width: '12px', height: '12px', borderRadius: '50%', background: intentionColor(customer.intention_level), display: 'inline-block' }"></span>
+            <span>{{ customer.intention_level }}级 - {{ intentionLabel(customer.intention_level) }}</span>
+          </span>
         </el-descriptions-item>
         <el-descriptions-item label="来源">{{ customer.source }}</el-descriptions-item>
         <el-descriptions-item label="状态">
@@ -30,6 +31,12 @@
         <el-descriptions-item label="负责人">{{ customer.owner_name }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ customer.created_at }}</el-descriptions-item>
         <el-descriptions-item label="地址" :span="3">{{ customer.address }}</el-descriptions-item>
+        <el-descriptions-item label="标签" :span="3">
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <el-tag v-for="tag in (customer.tags || [])" :key="tag" size="small" type="warning">{{ tag }}</el-tag>
+            <span v-if="!customer.tags?.length" style="color: #c0c4cc;">暂无标签</span>
+          </div>
+        </el-descriptions-item>
         <el-descriptions-item label="备注" :span="3">{{ customer.remark }}</el-descriptions-item>
       </el-descriptions>
     </el-card>
@@ -63,6 +70,11 @@ const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const customer = ref({})
+
+const intentionColors = { A: '#f56c6c', B: '#e6a23c', C: '#409eff', D: '#67c23a', E: '#909399', F: '#c0c4cc', G: '#dcdfe6' }
+const intentionLabels = { A: '明确意向', B: '较高意向', C: '一般意向', D: '有待跟进', E: '意向较低', F: '暂无意向', G: '无效客户' }
+function intentionColor(level) { return intentionColors[level] || '#909399' }
+function intentionLabel(level) { return intentionLabels[level] || '' }
 
 async function loadData() {
   loading.value = true

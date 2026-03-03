@@ -34,7 +34,15 @@ const routes = [
       { path: 'talent/:id', name: 'TalentDetail', component: () => import('../views/talent/TalentDetail.vue'), meta: { title: '人才详情' } },
       { path: 'mine', name: 'PersonalCenter', component: () => import('../views/mine/PersonalCenter.vue'), meta: { title: '个人中心' } },
       { path: 'settings', name: 'Settings', component: () => import('../views/mine/Settings.vue'), meta: { title: '系统设置' } },
-      { path: 'about', name: 'AboutUs', component: () => import('../views/mine/AboutUs.vue'), meta: { title: '关于我们' } }
+      { path: 'about', name: 'AboutUs', component: () => import('../views/mine/AboutUs.vue'), meta: { title: '关于我们' } },
+      // New routes
+      { path: 'calendar', name: 'Calendar', component: () => import('../views/calendar/CalendarView.vue'), meta: { title: '日历视图' } },
+      { path: 'businesscard', name: 'BusinessCard', component: () => import('../views/businesscard/BusinessCardView.vue'), meta: { title: '电子名片' } },
+      { path: 'analytics', name: 'DataAnalytics', component: () => import('../views/analytics/DataAnalyticsView.vue'), meta: { title: '数据分析' } },
+      { path: 'activities', name: 'ActivityList', component: () => import('../views/activity/ActivityList.vue'), meta: { title: '活动中心' } },
+      { path: 'activities/:id', name: 'ActivityDetail', component: () => import('../views/activity/ActivityDetail.vue'), meta: { title: '活动详情' } },
+      { path: 'achievements', name: 'Achievements', component: () => import('../views/achievement/AchievementView.vue'), meta: { title: '业绩成就' } },
+      { path: 'feedback', name: 'Feedback', component: () => import('../views/mine/Feedback.vue'), meta: { title: '意见反馈' } },
     ]
   }
 ]
