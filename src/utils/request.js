@@ -3,9 +3,11 @@ import { getToken, removeToken, removeUser } from './auth'
 import { ElMessage } from 'element-plus'
 import router from '../router'
 
+const isNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform()
+
 const request = axios.create({
-  baseURL: '/api',
-  timeout: 10000
+  baseURL: isNative ? 'https://crm-system-c3f.pages.dev/api' : '/api',
+  timeout: 15000
 })
 
 request.interceptors.request.use(config => {

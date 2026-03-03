@@ -3,8 +3,8 @@
   "appName": "CRM客户管理",
   "webDir": "dist",
   "server": {
-    "url": "https://crm-system-c3f.pages.dev",
-    "cleartext": true
+    "androidScheme": "https",
+    "hostname": "crm.local"
   },
   "android": {
     "allowMixedContent": true,
