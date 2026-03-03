@@ -17,13 +17,29 @@
     body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
     /* Prevent pull-to-refresh on mobile */
     html { overscroll-behavior: none; }
+    #app-loading { display:flex;justify-content:center;align-items:center;height:100vh;color:#667eea;font-size:18px;font-family:sans-serif; }
+    #app-error { display:none;padding:20px;color:#f56c6c;font-size:13px;word-break:break-all;font-family:monospace;background:#fff;position:fixed;top:0;left:0;right:0;bottom:0;overflow:auto;z-index:99999; }
   </style>
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app-error"></div>
+  <div id="app"><div id="app-loading">加载中...</div></div>
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      var el = document.getElementById('app-error');
+      el.style.display = 'block';
+      el.innerHTML = '<h3>JS Error</h3><p>' + msg + '</p><p>File: ' + url + '</p><p>Line: ' + line + ':' + col + '</p><pre>' + (error && error.stack || '') + '</pre>';
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+      var el = document.getElementById('app-error');
+      el.style.display = 'block';
+      el.innerHTML += '<h3>Promise Error</h3><p>' + (e.reason && e.reason.message || e.reason || 'Unknown') + '</p><pre>' + (e.reason && e.reason.stack || '') + '</pre>';
+    });
+  </script>
   <script type="module" src="/src/main.js"></script>
   <script>
-    if ('serviceWorker' in navigator) {
+    // Only register SW in browser, not in Capacitor
+    if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform())) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
       });

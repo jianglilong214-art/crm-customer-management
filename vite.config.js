@@ -16,6 +16,9 @@ export default defineConfig({
       resolvers: [ElementPlusResolver()]
     })
   ],
+  build: {
+    crossOriginLoading: false
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src')

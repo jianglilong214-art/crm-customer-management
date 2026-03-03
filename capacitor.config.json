@@ -3,8 +3,7 @@
   "appName": "CRM客户管理",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https",
-    "hostname": "crm.local"
+    "androidScheme": "https"
   },
   "android": {
     "allowMixedContent": true,
